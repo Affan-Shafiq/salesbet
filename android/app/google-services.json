@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "583482364138",
+    "project_id": "salesbet-7deb2",
+    "storage_bucket": "salesbet-7deb2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:583482364138:android:fba58bb6de10f445828793",
+        "android_client_info": {
+          "package_name": "com.example.untitled"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAjXc-SYBa0RMzVbnQ4lNtoGLY7T3fbdN4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

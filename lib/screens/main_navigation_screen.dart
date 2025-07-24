@@ -106,7 +106,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         type: BottomNavigationBarType.fixed,
         backgroundColor: AppColors.card,
         selectedItemColor: AppColors.primary,
-        unselectedItemColor: Colors.white54,
+        unselectedItemColor: AppColors.subtitle,
+        showUnselectedLabels: true,
         items: _navItems,
       ),
     );

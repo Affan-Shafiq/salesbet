@@ -5,8 +5,8 @@ import 'team_model.dart';
 
 class MatchModel {
   final String id;
-  final dynamic side1; // UserModel or TeamModel
-  final dynamic side2; // UserModel or TeamModel
+  final Map<String, dynamic> side1; // {'name': String, 'odds': double}
+  final Map<String, dynamic> side2; // {'name': String, 'odds': double}
   final int rewardPoints;
   final Timestamp date;
   final String type;
@@ -20,12 +20,12 @@ class MatchModel {
     required this.type,
   });
 
-  factory MatchModel.fromFirestore(doc, dynamic side1, dynamic side2) {
+  factory MatchModel.fromFirestore(doc) {
     final data = doc.data();
     return MatchModel(
       id: doc.id,
-      side1: side1,
-      side2: side2,
+      side1: Map<String, dynamic>.from(data['side1'] ?? {}),
+      side2: Map<String, dynamic>.from(data['side2'] ?? {}),
       rewardPoints: data['rewardPoints'] ?? 0,
       date: data['date'] ?? '',
       type: data['type'] ?? '',

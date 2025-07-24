@@ -171,7 +171,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       filled: true,
                       fillColor: AppColors.card,
                     ),
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: AppColors.text),
                   ),
                   const SizedBox(height: 20),
                   if (_isRegister) ...[
@@ -183,7 +183,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         filled: true,
                         fillColor: AppColors.card,
                       ),
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: AppColors.text),
                     ),
                     const SizedBox(height: 20),
                     TextField(
@@ -194,7 +194,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         filled: true,
                         fillColor: AppColors.card,
                       ),
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: AppColors.text),
                     ),
                     const SizedBox(height: 20),
                   ],
@@ -206,12 +206,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       filled: true,
                       fillColor: AppColors.card,
                       suffixIcon: IconButton(
-                        icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility, color: Colors.white70),
+                        icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility, color: AppColors.subtitle),
                         onPressed: () => setState(() => _showPassword = !_showPassword),
                       ),
                     ),
                     obscureText: !_showPassword,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: AppColors.text),
                   ),
                   if (_error != null)
                     Padding(

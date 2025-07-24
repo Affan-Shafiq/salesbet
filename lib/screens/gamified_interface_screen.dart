@@ -58,24 +58,81 @@ class _GamifiedInterfaceScreenState extends State<GamifiedInterfaceScreen> with 
     super.dispose();
   }
 
+  Future<Map<String, String>> _buildMatchMap(Map<String, dynamic> side1, Map<String, dynamic> side2, String type) async {
+    String side1Name = 'Unknown';
+    String side2Name = 'Unknown';
+    String avatar1 = '';
+    String avatar2 = '';
+
+    Future<Map<String, String>> resolveNameAndAvatar(DocumentReference ref) async {
+      final doc = await ref.get();
+      final data = doc.data() as Map<String, dynamic>?;
+      if (ref.parent.id == 'users') {
+        return {
+          'name': data?['name'] ?? 'Unknown',
+          'avatar': data?['pic'] ?? '',
+        };
+      } else if (ref.parent.id == 'teams') {
+        return {
+          'name': data?['name'] ?? 'Unknown',
+          'avatar': '', // Add team avatar logic if needed
+        };
+      }
+      return {'name': 'Unknown', 'avatar': ''};
+    }
+
+    if (side1['name'] is DocumentReference) {
+      final resolved = await resolveNameAndAvatar(side1['name']);
+      side1Name = resolved['name']!;
+      avatar1 = resolved['avatar']!;
+    } else if (side1['name'] is String) {
+      side1Name = side1['name'];
+    }
+
+    if (side2['name'] is DocumentReference) {
+      final resolved = await resolveNameAndAvatar(side2['name']);
+      side2Name = resolved['name']!;
+      avatar2 = resolved['avatar']!;
+    } else if (side2['name'] is String) {
+      side2Name = side2['name'];
+    }
+
+    return {
+      'side1': side1Name,
+      'side2': side2Name,
+      'avatar1': avatar1,
+      'avatar2': avatar2,
+      'type': type,
+    };
+  }
+
   Future<List<Map<String, String>>> fetchAllMatches() async {
-    final snapshot = await FirebaseFirestore.instance.collection('matches').get();
-    List<Map<String, String>> matches = [];
+    final now = DateTime.now();
+    final startOfTomorrow = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+    print('DEBUG: startOfTomorrow = ' + startOfTomorrow.toIso8601String());
+    final snapshot = await FirebaseFirestore.instance.collection('matches')
+      .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfTomorrow))
+      .get();
+    print('DEBUG: snapshot.docs.length = ${snapshot.docs.length}');
+    List<Future<Map<String, String>>> futureMatches = [];
     for (var doc in snapshot.docs) {
       final data = doc.data();
-      final side1Ref = data['side1'];
-      final side2Ref = data['side2'];
+      final side1 = data['side1'] ?? {};
+      final side2 = data['side2'] ?? {};
       final type = data['type'] ?? '';
-      final side1 = await _resolveSideWithAvatar(side1Ref);
-      final side2 = await _resolveSideWithAvatar(side2Ref);
-      matches.add({
-        'side1': side1['name'] ?? '',
-        'side2': side2['name'] ?? '',
-        'avatar1': side1['avatar'] ?? '',
-        'avatar2': side2['avatar'] ?? '',
-        'type': type,
-      });
+      final dateField = data['date'];
+      DateTime? matchDate;
+      if (dateField is Timestamp) {
+        matchDate = dateField.toDate();
+      } else if (dateField is String && dateField.isNotEmpty) {
+        matchDate = DateTime.tryParse(dateField);
+      }
+      print('DEBUG: matchId=${doc.id}, matchDate=$matchDate, type=${data['type']}');
+      print('DEBUG: Included match ${doc.id}');
+      futureMatches.add(_buildMatchMap(side1, side2, type));
     }
+    final matches = await Future.wait(futureMatches);
+    print('DEBUG: Matches list: ' + matches.toString());
     return matches;
   }
 
@@ -119,111 +176,115 @@ class _GamifiedInterfaceScreenState extends State<GamifiedInterfaceScreen> with 
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gamified Interface'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              if (widget.onLogout != null) widget.onLogout!();
-            },
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                FutureBuilder<List<Map<String, String>>>(
-                  future: fetchAllMatches(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const SizedBox(height: 70, child: Center(child: CircularProgressIndicator()));
-                    }
-                    final matches = snapshot.data ?? [];
-                    if (matches.isEmpty) {
-                      return const SizedBox(height: 70, child: Center(child: Text('No matches scheduled for today.')));
-                    }
-                    return Column(
-                      children: matches.map((m) =>
-                        SlideTransition(
-                          position: _matchupSlide,
-                          child: Card(
-                            color: AppColors.card,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            child: ListTile(
-                              leading: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if ((m['avatar1'] ?? '').isNotEmpty) CircleAvatar(backgroundImage: NetworkImage(m['avatar1']!)),
-                                  if ((m['avatar1'] ?? '').isNotEmpty && (m['avatar2'] ?? '').isNotEmpty) const SizedBox(width: 4),
-                                  if ((m['avatar2'] ?? '').isNotEmpty) CircleAvatar(backgroundImage: NetworkImage(m['avatar2']!)),
-                                ],
+    return Theme(
+      data: salesBetsTheme,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Gamified Interface'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: 'Logout',
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                if (widget.onLogout != null) widget.onLogout!();
+              },
+            ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FutureBuilder<List<Map<String, String>>>(
+                    future: fetchAllMatches(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const SizedBox(height: 70, child: Center(child: CircularProgressIndicator()));
+                      }
+                      final matches = snapshot.data ?? [];
+                      print('DEBUG: matches in UI builder: ' + matches.toString());
+                      if (matches.isEmpty) {
+                        return const SizedBox(height: 70, child: Center(child: Text('No upcoming matches.')));
+                      }
+                      return Column(
+                        children: matches.map((m) =>
+                          SlideTransition(
+                            position: _matchupSlide,
+                            child: Card(
+                              color: AppColors.card,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              child: ListTile(
+                                leading: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if ((m['avatar1'] ?? '').isNotEmpty) CircleAvatar(backgroundImage: NetworkImage(m['avatar1']!)),
+                                    if ((m['avatar1'] ?? '').isNotEmpty && (m['avatar2'] ?? '').isNotEmpty) const SizedBox(width: 4),
+                                    if ((m['avatar2'] ?? '').isNotEmpty) CircleAvatar(backgroundImage: NetworkImage(m['avatar2']!)),
+                                  ],
+                                ),
+                                title: Text('${m['side1']} vs ${m['side2']}'),
+                                subtitle: Text(m['type'] ?? ''),
+                                trailing: const Icon(Icons.sports_kabaddi, color: AppColors.primary),
                               ),
-                              title: Text('${m['side1']} vs ${m['side2']}'),
-                              subtitle: Text(m['type'] ?? ''),
-                              trailing: const Icon(Icons.sports_kabaddi, color: AppColors.primary),
                             ),
-                          ),
-                        )
-                      ).toList(),
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-                Text('Badges & Rewards', style: Theme.of(context).textTheme.bodyLarge),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ScaleTransition(
-                      scale: _badgeScale,
-                      child: _buildBadge('Gold', Icons.emoji_events, AppColors.accent),
-                    ),
-                    ScaleTransition(
-                      scale: _badgeScale,
-                      child: _buildBadge('MVP', Icons.star, Colors.purpleAccent),
-                    ),
-                    ScaleTransition(
-                      scale: _badgeScale,
-                      child: _buildBadge('Streak', Icons.flash_on, Colors.orangeAccent),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-                Text('Recent Streaks', style: Theme.of(context).textTheme.bodyLarge),
-                const SizedBox(height: 8),
-                FutureBuilder<List<String>>(
-                  future: fetchStreaks(),
-                  builder: (context, snapshot) {
-                    final streaks = snapshot.data ?? [];
-                    return SizedBox(
-                      height: 32,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: streaks.map((s) => _StreakTicker(text: s)).toList(),
+                          )
+                        ).toList(),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  Text('Badges & Rewards', style: Theme.of(context).textTheme.bodyLarge),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ScaleTransition(
+                        scale: _badgeScale,
+                        child: _buildBadge('Gold', Icons.emoji_events, AppColors.accent),
                       ),
-                    );
-                  },
-                ),
+                      ScaleTransition(
+                        scale: _badgeScale,
+                        child: _buildBadge('MVP', Icons.star, Colors.purpleAccent),
+                      ),
+                      ScaleTransition(
+                        scale: _badgeScale,
+                        child: _buildBadge('Streak', Icons.flash_on, Colors.orangeAccent),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  Text('Recent Streaks', style: Theme.of(context).textTheme.bodyLarge),
+                  const SizedBox(height: 8),
+                  FutureBuilder<List<String>>(
+                    future: fetchStreaks(),
+                    builder: (context, snapshot) {
+                      final streaks = snapshot.data ?? [];
+                      return SizedBox(
+                        height: 32,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: streaks.map((s) => _StreakTicker(text: s)).toList(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            WalkthroughOverlayWidget(
+              controller: _walkthroughController,
+              messages: [
+                'Upcoming Matches!\n\nSee all upcoming matches and plan your strategy.',
+                'Badges & Rewards!\n\nEarn badges and rewards for your achievements.',
+                'Recent Achievements!\n\nCheck out the latest achievements of all players.',
               ],
             ),
-          ),
-          WalkthroughOverlayWidget(
-            controller: _walkthroughController,
-            messages: [
-              'Upcoming Matches!\n\nSee all upcoming matches and plan your strategy.',
-              'Badges & Rewards!\n\nEarn badges and rewards for your achievements.',
-              'Recent Achievements!\n\nCheck out the latest achievements of all players.',
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

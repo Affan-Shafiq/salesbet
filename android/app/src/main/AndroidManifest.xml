@@ -2,7 +2,7 @@
     <application
         android:label="SalesBet"
         android:name="${applicationName}"
-        android:icon="@mipmap/final_logo">
+        android:icon="@mipmap/salesbet_logo">
         <activity
             android:name=".MainActivity"
             android:exported="true"
